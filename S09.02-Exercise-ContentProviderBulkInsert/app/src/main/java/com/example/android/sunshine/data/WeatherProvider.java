@@ -20,8 +20,14 @@ import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.content.UriMatcher;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.support.annotation.NonNull;
+
+import com.example.android.sunshine.utilities.SunshineDateUtils;
+
+import static com.example.android.sunshine.data.WeatherContract.WeatherEntry.COLUMN_DATE;
+import static com.example.android.sunshine.data.WeatherContract.WeatherEntry.TABLE_NAME;
 
 /**
  * This class serves as the ContentProvider for all of Sunshine's data. This class allows us to
@@ -122,7 +128,7 @@ public class WeatherProvider extends ContentProvider {
         return true;
     }
 
-//  TODO (1) Implement the bulkInsert method
+//  DONE (1) Implement the bulkInsert method
     /**
      * Handles requests to insert a set of new rows. In Sunshine, we are only going to be
      * inserting multiple rows of data at a time from a weather forecast. There is no use case
@@ -138,13 +144,42 @@ public class WeatherProvider extends ContentProvider {
      */
     @Override
     public int bulkInsert(@NonNull Uri uri, @NonNull ContentValues[] values) {
-        throw new RuntimeException("Student, you need to implement the bulkInsert method!");
+//          DONE (2) Only perform our implementation of bulkInsert if the URI matches the CODE_WEATHER code
+        final SQLiteDatabase db = mOpenHelper.getWritableDatabase();
 
-//          TODO (2) Only perform our implementation of bulkInsert if the URI matches the CODE_WEATHER code
+        switch (sUriMatcher.match(uri)){
+            case CODE_WEATHER:
+                db.beginTransaction();
+                int rowsInserted = 0;
 
-//              TODO (3) Return the number of rows inserted from our implementation of bulkInsert
+                try{
+                    for(ContentValues value : values){
+                        long weatherDate = value.getAsLong(COLUMN_DATE);
+                        if(!SunshineDateUtils.isDateNormalized(weatherDate)){
+                            throw new IllegalArgumentException("Date must be normalized to insert");
+                        }
 
-//          TODO (4) If the URI does match match CODE_WEATHER, return the super implementation of bulkInsert
+                        long _id = db.insert(TABLE_NAME, null, value);
+                        if(_id != -1){
+                            rowsInserted++;
+                        }
+                    }
+                    db.setTransactionSuccessful();
+                }finally {
+                    db.endTransaction();
+                }
+//              DONE (3) Return the number of rows inserted from our implementation of bulkInsert
+                if(rowsInserted > 0){
+                    getContext().getContentResolver().notifyChange(uri, null);
+                }
+                return  rowsInserted;
+            default:
+//          DONE (4) If the URI does match match CODE_WEATHER, return the super implementation of bulkInsert
+                return super.bulkInsert(uri, values);
+        }
+
+
+
     }
 
     /**
@@ -206,7 +241,7 @@ public class WeatherProvider extends ContentProvider {
 
                 cursor = mOpenHelper.getReadableDatabase().query(
                         /* Table we are going to query */
-                        WeatherContract.WeatherEntry.TABLE_NAME,
+                        TABLE_NAME,
                         /*
                          * A projection designates the columns we want returned in our Cursor.
                          * Passing null will return all columns of data within the Cursor.
@@ -223,7 +258,7 @@ public class WeatherProvider extends ContentProvider {
                          * within the selectionArguments array will be inserted into the
                          * selection statement by SQLite under the hood.
                          */
-                        WeatherContract.WeatherEntry.COLUMN_DATE + " = ? ",
+                        COLUMN_DATE + " = ? ",
                         selectionArguments,
                         null,
                         null,
@@ -245,7 +280,7 @@ public class WeatherProvider extends ContentProvider {
              */
             case CODE_WEATHER: {
                 cursor = mOpenHelper.getReadableDatabase().query(
-                        WeatherContract.WeatherEntry.TABLE_NAME,
+                        TABLE_NAME,
                         projection,
                         selection,
                         selectionArgs,

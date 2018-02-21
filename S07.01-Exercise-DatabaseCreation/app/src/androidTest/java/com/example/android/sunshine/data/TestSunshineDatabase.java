@@ -193,7 +193,7 @@ public class TestSunshineDatabase {
         } catch (InstantiationException e) {
             fail(e.getMessage());
         } catch (InvocationTargetException e) {
-            fail(e.getMessage());
+            fail(e.getCause() + "aici");
         }
     }
 
